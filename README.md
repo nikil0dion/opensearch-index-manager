@@ -45,8 +45,6 @@ cp /path/to/your/root.crt certs/
 ### Configure Docker Compose
 
 ```yaml
-
-```yaml
     environment:
       # OpenSearch setting
       OPENSEARCH_ADDRESSES: "https://your-opensearch-host:9200"
