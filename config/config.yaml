@@ -1,0 +1,32 @@
+# OpenSearch Backup Manager Configuration
+
+opensearch:
+  addresses:
+    - "https://localhost:9200"
+  username: ""  # Set via OPENSEARCH_USERNAME
+  password: ""  # Set via OPENSEARCH_PASSWORD
+  cert_path: "/certs/root.crt"  
+
+s3:
+  endpoint: ""  # Set via S3_ENDPOINT (e.g. s3.amazonaws.com or minio:9000)
+  access_key_id: ""  # Set via S3_ACCESS_KEY_ID
+  secret_access_key: ""  # Set via S3_SECRET_ACCESS_KEY
+  bucket: " " # Set via S3_BUCKET
+  region: " " # Set via S3_REGION
+  use_ssl: true
+
+# Cleanup jobs
+cleanup_jobs:
+  - index_name: "index_name"
+    retention_days: 33
+    schedule: "0 2 * * *"  # Everyday 2:00
+
+# Backup jobs
+backup_jobs:
+  - index_name: "index_name"
+    schedule: "0 6 * * *"  # Everyday 6:00 
+    interval_hours: 2  # Split by 2 hours
+    s3_path: "index_name/"
+    request_interval_seconds: 30
+
+
