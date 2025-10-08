@@ -1,4 +1,4 @@
-# OpenSearch Backup Manager
+# OpenSearch Index Manager
 
 Automated backup and cleanup tool for OpenSearch/Elasticsearch indexes with S3 upload support.
 
