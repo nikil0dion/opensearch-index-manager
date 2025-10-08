@@ -30,7 +30,7 @@ backup_jobs:
   - index_name: "your-index"
     schedule: "0 6 * * *"  # Every day at 6:00 AM
     interval_hours: 2
-    s3_path: "backups/your-index/"
+    s3_path: "your-index/"
     request_interval_seconds: 30
 ```
 
