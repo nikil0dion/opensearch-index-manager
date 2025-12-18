@@ -68,7 +68,7 @@ func (s *Service) Cleanup(ctx context.Context, job config.CleanupJob) error {
 		log.Errorf("Cleanup for %s completed with %d failures (deleted: %d)", job.IndexName, len(resp.Failures), resp.Deleted)
 		for i, failure := range resp.Failures {
 			if i < 3 { // Log first 3 failures
-				log.Errorf("  Failure %d: index=%s, shard=%d, reason=%s", i+1, failure.Index, failure.Shard, failure.Reason)
+				log.Errorf("  Failure %d: %+v", i+1, failure)
 			}
 		}
 	} else {
