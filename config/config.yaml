@@ -20,6 +20,8 @@ cleanup_jobs:
   - index_name: "index_name"
     retention_days: 33
     schedule: "0 2 * * *"  # Everyday 2:00
+    interval_hours: 2      # Delete by 2-hour intervals
+    request_interval_seconds: 15  # Pause 15 seconds between intervals
 
 # Backup jobs
 backup_jobs:

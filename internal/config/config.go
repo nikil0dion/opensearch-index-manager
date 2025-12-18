@@ -35,9 +35,11 @@ type S3Config struct {
 
 // CleanupJob cleanup job
 type CleanupJob struct {
-	IndexName     string `yaml:"index_name"`
-	RetentionDays int    `yaml:"retention_days"`
-	Schedule      string `yaml:"schedule"` // cron format
+	IndexName       string `yaml:"index_name"`
+	RetentionDays   int    `yaml:"retention_days"`
+	Schedule        string `yaml:"schedule"`                 // cron format
+	IntervalHours   int    `yaml:"interval_hours"`           // interval of splitting (2, 4, 6, 24)
+	RequestInterval int    `yaml:"request_interval_seconds"` // pause between intervals
 }
 
 // BackupJob backup job
