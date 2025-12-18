@@ -43,13 +43,37 @@ func (s *Service) Cleanup(ctx context.Context, job config.CleanupJob) error {
 		}`, job.RetentionDays)),
 	}
 
-	// Execute request
-	resp, err := s.client.GetClient().Document.DeleteByQuery(ctx, deleteQuery)
-	if err != nil {
-		return fmt.Errorf("delete by query failed: %w", err)
+	// Execute request with retry
+	var resp *opensearchapi.DocumentDeleteByQueryResp
+	var err error
+
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err = s.client.GetClient().Document.DeleteByQuery(ctx, deleteQuery)
+		if err == nil {
+			break
+		}
+
+		if attempt < maxRetries {
+			log.Warnf("Cleanup attempt %d/%d failed for %s: %v (retrying...)", attempt, maxRetries, job.IndexName, err)
+		}
 	}
 
-	log.Infof("Cleanup completed for %s: deleted %d documents", job.IndexName, resp.Deleted)
+	if err != nil {
+		return fmt.Errorf("delete by query failed after %d attempts: %w", maxRetries, err)
+	}
+
+	// Check for failures in response
+	if len(resp.Failures) > 0 {
+		log.Errorf("Cleanup for %s completed with %d failures (deleted: %d)", job.IndexName, len(resp.Failures), resp.Deleted)
+		for i, failure := range resp.Failures {
+			if i < 3 { // Log first 3 failures
+				log.Errorf("  Failure %d: index=%s, shard=%d, reason=%s", i+1, failure.Index, failure.Shard, failure.Reason)
+			}
+		}
+	} else {
+		log.Infof("Cleanup completed for %s: deleted %d documents", job.IndexName, resp.Deleted)
+	}
 
 	return nil
 }
