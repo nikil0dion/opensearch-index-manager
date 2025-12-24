@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/okto/opensearch-backup-manager/internal/backup"
 	"github.com/okto/opensearch-backup-manager/internal/cleanup"
@@ -62,7 +63,10 @@ func logConfig(cfg *config.Config) {
 
 func main() {
 	log.SetFormatter(&log.JSONFormatter{
-		DisableTimestamp: true,
+		TimestampFormat: time.RFC3339,
+		FieldMap: log.FieldMap{
+			log.FieldKeyTime: "timestamp",
+		},
 	})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
