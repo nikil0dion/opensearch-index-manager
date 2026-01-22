@@ -73,16 +73,17 @@ func (s *Service) Backup(ctx context.Context, job config.BackupJob) error {
 		return nil
 	}
 
-	// Merge files
-	mergedFile, totalCount, err := s.mergeFiles(allFiles, job.IndexName, targetDate)
+	// Count total documents from all files
+	totalCount, err := s.countDocumentsInFiles(allFiles)
 	if err != nil {
-		return fmt.Errorf("failed to merge files: %w", err)
+		log.Warnf("Failed to count documents: %v", err)
+		totalCount = 0
 	}
 
-	// Compress file
-	compressedFile, err := s.compressFile(mergedFile)
+	// Compress all files together into one gzip archive
+	compressedFile, err := s.compressMultipleFiles(allFiles, job.IndexName, targetDate)
 	if err != nil {
-		return fmt.Errorf("failed to compress file: %w", err)
+		return fmt.Errorf("failed to compress files: %w", err)
 	}
 
 	// Upload to S3
@@ -92,7 +93,7 @@ func (s *Service) Backup(ctx context.Context, job config.BackupJob) error {
 	}
 
 	// Cleanup temporary files
-	s.cleanup(allFiles, mergedFile, compressedFile)
+	s.cleanupSimple(allFiles, compressedFile)
 
 	log.Infof("Backup completed for %s: %s", job.IndexName, s3Key)
 	return nil
@@ -285,7 +286,93 @@ func (s *Service) compressFile(filename string) (string, error) {
 	return compressedFilename, nil
 }
 
-// cleanup delete temporary files
+// countDocumentsInFiles count total documents from all files
+func (s *Service) countDocumentsInFiles(files []string) (int, error) {
+	totalCount := 0
+
+	for _, filename := range files {
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Warnf("Failed to open file %s: %v", filename, err)
+			continue
+		}
+
+		// Read and parse JSON to count documents
+		var searchResponse struct {
+			Hits struct {
+				Total struct {
+					Value int `json:"value"`
+				} `json:"total"`
+				Hits []interface{} `json:"hits"`
+			} `json:"hits"`
+		}
+
+		decoder := json.NewDecoder(file)
+		if err := decoder.Decode(&searchResponse); err != nil {
+			file.Close()
+			log.Warnf("Failed to decode JSON from %s: %v", filename, err)
+			continue
+		}
+
+		// Add to total count
+		totalCount += len(searchResponse.Hits.Hits)
+		file.Close()
+	}
+
+	return totalCount, nil
+}
+
+// compressMultipleFiles compress all files together into one gzip archive with maximum compression
+func (s *Service) compressMultipleFiles(files []string, indexName string, date time.Time) (string, error) {
+	// Create compressed filename
+	compressedFilename := filepath.Join(s.workDir, fmt.Sprintf("%s-%s.json.gz",
+		date.Format("01-02-06"), indexName))
+
+	// Create compressed file
+	dest, err := os.Create(compressedFilename)
+	if err != nil {
+		return "", err
+	}
+	defer dest.Close()
+
+	// Create gzip writer with maximum compression level (gzip -9)
+	gzipWriter, err := gzip.NewWriterLevel(dest, gzip.BestCompression)
+	if err != nil {
+		return "", err
+	}
+	defer gzipWriter.Close()
+
+	gzipWriter.Name = fmt.Sprintf("%s-%s.json", date.Format("01-02-06"), indexName)
+
+	// Write all files into the gzip stream
+	for _, filename := range files {
+		file, err := os.Open(filename)
+		if err != nil {
+			return "", fmt.Errorf("failed to open file %s: %w", filename, err)
+		}
+
+		// Copy file content directly to gzip writer
+		_, err = io.Copy(gzipWriter, file)
+		file.Close()
+		if err != nil {
+			return "", fmt.Errorf("failed to compress file %s: %w", filename, err)
+		}
+	}
+
+	log.Infof("Compressed %d files into %s with maximum compression (gzip -9)", len(files), compressedFilename)
+	return compressedFilename, nil
+}
+
+// cleanupSimple delete temporary files
+func (s *Service) cleanupSimple(tempFiles []string, compressedFile string) {
+	for _, file := range tempFiles {
+		os.Remove(file)
+	}
+	os.Remove(compressedFile)
+	log.Infof("Cleaned up temporary files")
+}
+
+// cleanup delete temporary files (legacy function for compatibility)
 func (s *Service) cleanup(tempFiles []string, mergedFile, compressedFile string) {
 	for _, file := range tempFiles {
 		os.Remove(file)
